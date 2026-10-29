@@ -1,6 +1,6 @@
 """
-PSF : référence de diffraction (Airy), rapport de Strehl, profil radial
-et énergie encerclée.
+PSF : référence de diffraction (Airy), profils intégrés sur le pixel,
+rapport de Strehl, profil radial et énergie encerclée.
 
 Toutes les fonctions supposent une PSF centrée en ``(shape - 1) / 2``.
 
@@ -16,7 +16,7 @@ import warnings
 import numpy as np
 from numpy.typing import NDArray
 
-__all__ = ["airy_psf", "strehl_ratio", "radial_profile", "encircled_energy"]
+__all__ = ["airy_psf", "integrated_profile", "strehl_ratio", "radial_profile", "encircled_energy"]
 
 
 def _radii(shape: tuple[int, ...]) -> NDArray[np.float64]:
@@ -53,6 +53,90 @@ def airy_psf(
     nonzero = kr != 0
     psf[nonzero] = (2 * j1(kr[nonzero]) / kr[nonzero]) ** 2
     return psf / psf.sum()
+
+
+def integrated_profile(
+    shape: tuple[int, int],
+    center: tuple[float, float],
+    profile: str,
+    params: dict | None = None,
+    oversample: int = 5,
+) -> NDArray[np.float64]:
+    """
+    Profil de PSF empirique **intégré sur la surface de chaque pixel**
+    (et non échantillonné au centre des pixels).
+
+    Parameters
+    ----------
+    shape :
+        ``(H, W)``.
+    center :
+        ``(y0, x0)`` centre sous-pixel, en coordonnées pixel (centre du
+        pixel ``(i, j)`` en ``(i, j)``).
+    profile : {"gaussian", "moffat", "airy"}
+        - ``"gaussian"`` : intégration **exacte** par la fonction d'erreur
+          (sauf si ``theta`` ≠ 0 : sur-échantillonnage) ;
+        - ``"moffat"``, ``"airy"`` : sur-échantillonnage (grille
+          ``oversample`` fois plus fine, moyennée par pixel).
+    params : dict, optional
+        - ``"gaussian"`` : ``sigma=(sigma_y, sigma_x)`` [px], défaut
+          ``(1.5, 1.5)`` ; ``theta`` [rad], rotation, défaut 0 ;
+        - ``"moffat"`` : ``alpha`` [px], défaut 2.0 ; ``beta``, défaut
+          4.765 (turbulence atmosphérique) ;
+        - ``"airy"`` : ``radius_zero`` [px], rayon du premier anneau noir
+          (``1.22 λ/D`` ramené aux pixels), défaut 2.0 ;
+        - tous : ``amplitude``, défaut 1.
+    oversample :
+        Facteur de sur-échantillonnage des profils sans primitive.
+
+    Returns
+    -------
+    NDArray
+        Image ``(H, W)``, non normalisée (``amplitude`` × profil).
+    """
+    from scipy.special import erf, j1
+
+    params = params or {}
+    h, w = shape
+    y0, x0 = center
+    amp = params.get("amplitude", 1.0)
+
+    if profile == "gaussian":
+        sigma_y, sigma_x = params.get("sigma", (1.5, 1.5))
+        theta = params.get("theta", 0.0)
+        if theta == 0.0:
+            y_grid, x_grid = np.indices((h, w))
+            val_x = erf((x_grid + 0.5 - x0) / (sigma_x * np.sqrt(2))) - erf(
+                (x_grid - 0.5 - x0) / (sigma_x * np.sqrt(2))
+            )
+            val_y = erf((y_grid + 0.5 - y0) / (sigma_y * np.sqrt(2))) - erf(
+                (y_grid - 0.5 - y0) / (sigma_y * np.sqrt(2))
+            )
+            return amp * 0.25 * val_x * val_y
+
+    step = 1.0 / oversample
+    sub = np.arange(oversample) * step - 0.5 + step / 2
+    y_sub = (np.arange(h)[:, None] + sub[None, :]).ravel()[:, None] - y0
+    x_sub = (np.arange(w)[:, None] + sub[None, :]).ravel()[None, :] - x0
+
+    if profile == "gaussian":
+        c, s = np.cos(theta), np.sin(theta)
+        u = c * x_sub + s * y_sub
+        v = -s * x_sub + c * y_sub
+        high_res = np.exp(-0.5 * ((u / sigma_x) ** 2 + (v / sigma_y) ** 2)) / (2 * np.pi * sigma_x * sigma_y)
+    elif profile == "moffat":
+        alpha = params.get("alpha", 2.0)
+        beta = params.get("beta", 4.765)
+        high_res = (1 + (x_sub**2 + y_sub**2) / alpha**2) ** (-beta)
+    elif profile == "airy":
+        r_zero = params.get("radius_zero", 2.0)
+        k = 3.8317059702075125 / r_zero  # premier zéro de J1 au rayon r_zero
+        x_val = k * np.sqrt(x_sub**2 + y_sub**2) + 1e-12
+        high_res = (2 * j1(x_val) / x_val) ** 2
+    else:
+        raise ValueError(f"profile inconnu : {profile!r} (attendu gaussian/moffat/airy)")
+
+    return amp * high_res.reshape(h, oversample, w, oversample).mean(axis=(1, 3))
 
 
 def strehl_ratio(psf_measured: NDArray[np.floating], psf_reference: NDArray[np.floating]) -> float:
