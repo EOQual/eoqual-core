@@ -142,7 +142,7 @@ au moins » du README) :
 
 **Pourquoi le contour principal d'une pupille n'a pas besoin de ça, mais
 ses bras d'araignée si** (étude menée côté eoqual-phaseretrieval,
-§10.4 de sa documentation technique) :
+§10.3 de sa documentation technique) :
 
 - un bord binaire (disque, anneau) converge vers la forme continue en
   ~1/aperture_px : déjà < 0,3 % d'erreur de PSF dès 64 px d'ouverture, le
