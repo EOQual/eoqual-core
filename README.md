@@ -42,7 +42,7 @@ Dépendances : numpy et scipy, rien d'autre.
 | `eoqual.core.fourier` | `perdecomp`, `translate`, `dequantize`, `frequencies`, `spectrum`, `boundary_jump` | Spectre sans « croix » de bord, translation sous-pixel, prétraitement des indices de phase |
 | `eoqual.core.edge` | `bin_profile`, `esf_to_lsf`, `lsf_to_mtf`, `derivative_correction`, `pixel_aperture_correction`, `mtf_at`, `frequency_at`, `fwhm`, `rer` | MTF par bord (mire ou arête naturelle) une fois le profil projeté |
 | `eoqual.core.bayer` | `BAYER_PATTERNS`, `BAYER_SAMPLING_FACTOR`, `bayer_offsets`, `bayer_masks`, `extract_bayer_planes` | Mosaïques RGGB/BGGR/GRBG/GBRG |
-| `eoqual.core.psf` | `airy_psf`, `integrated_profile`, `strehl_ratio`, `radial_profile`, `encircled_energy` | PSF de synthèse intégrées sur le pixel, qualité d'une PSF mesurée |
+| `eoqual.core.psf` | `airy_psf`, `airy_radius_px`, `integrated_profile`, `strehl_ratio`, `radial_profile`, `encircled_energy` | PSF de synthèse intégrées sur le pixel, qualité d'une PSF mesurée |
 | `eoqual.core.kernel` | `psf2otf`, `convolve_circular` | Fonction de transfert d'un noyau sur une grille FFT, flou synthétique |
 | `eoqual.core.noise` | `estimate_noise_sigma`, `finest_diagonal_detail` | Écart-type d'un bruit blanc (Donoho & Johnstone) |
 | `eoqual.core.detrend` | `fit_plane_residual` | Retrait d'un gradient d'éclairement sur zone uniforme |
@@ -86,7 +86,7 @@ briques.
 | eoqual-metrics | `fourier` (indice SI), `edge` (AEM, SaSbEM), `tiling` |
 | eoqual-demosaicing | `bayer` |
 | eoqual-phaseretrieval | `psf` (Airy, Strehl, profil radial) |
-| eoqual-deconvolution | `kernel`, `noise`, `psf` (`airy_psf`, `integrated_profile`), `fourier` (`perdecomp`, bords) |
+| eoqual-deconvolution | `kernel`, `noise`, `psf` (`airy_psf`, `airy_radius_px`, `integrated_profile`), `fourier` (`perdecomp`, bords) |
 
 Depuis la 0.2.0, `kernel` reprend des fonctions d'eoqual-measure
 (`synthetic.processing`), `noise` celle d'eoqual-denoising

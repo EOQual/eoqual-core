@@ -16,7 +16,7 @@ import warnings
 import numpy as np
 from numpy.typing import NDArray
 
-__all__ = ["airy_psf", "integrated_profile", "strehl_ratio", "radial_profile", "encircled_energy"]
+__all__ = ["airy_psf", "airy_radius_px", "integrated_profile", "strehl_ratio", "radial_profile", "encircled_energy"]
 
 
 def _radii(shape: tuple[int, ...]) -> NDArray[np.float64]:
@@ -53,6 +53,39 @@ def airy_psf(
     nonzero = kr != 0
     psf[nonzero] = (2 * j1(kr[nonzero]) / kr[nonzero]) ** 2
     return psf / psf.sum()
+
+
+#: Premier zéro de J1(πx)/x : rayon du premier anneau noir, en λ/D.
+AIRY_FIRST_ZERO = 1.2196698912665045
+
+
+def airy_radius_px(
+    wavelength: float,
+    diameter: float,
+    focal_length: float,
+    pixel_pitch: float,
+) -> float:
+    """
+    Rayon du premier anneau noir de la tache d'Airy, en pixels détecteur :
+    ``1.22 λ f / (D p)``.
+
+    Parameters
+    ----------
+    wavelength, diameter, focal_length, pixel_pitch :
+        Longueur d'onde, diamètre de pupille, focale et pas pixel, dans une
+        même unité de longueur (mètres par exemple).
+
+    Notes
+    -----
+    Le système est échantillonné à Nyquist pour la fréquence de coupure
+    optique ``D / (λ f)`` quand ``λ f / (D p) = 2``, soit un rayon de 2.44
+    pixels.
+    """
+    for name, v in (("wavelength", wavelength), ("diameter", diameter),
+                    ("focal_length", focal_length), ("pixel_pitch", pixel_pitch)):
+        if v <= 0:
+            raise ValueError(f"{name} doit être strictement positif.")
+    return AIRY_FIRST_ZERO * wavelength * focal_length / (diameter * pixel_pitch)
 
 
 def integrated_profile(

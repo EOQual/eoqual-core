@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 
 from eoqual.core.kernel import convolve_circular, psf2otf
-from eoqual.core.psf import integrated_profile
+from eoqual.core.psf import airy_radius_px, integrated_profile
 from eoqual.core.noise import estimate_noise_sigma, finest_diagonal_detail
 
 
@@ -68,3 +68,10 @@ def test_integrated_airy_and_moffat():
     assert m.max() == pytest.approx(3.0, rel=0.1)
     with pytest.raises(ValueError):
         integrated_profile((5, 5), (2, 2), "lorentz")
+
+
+def test_airy_radius_px():
+    # λ f / (D p) = 2 (Nyquist) → 2.44 pixels
+    assert airy_radius_px(0.5e-6, 0.1, 4.0, 10e-6) == pytest.approx(2 * 1.21967, rel=1e-5)
+    with pytest.raises(ValueError):
+        airy_radius_px(0.0, 0.1, 4.0, 10e-6)

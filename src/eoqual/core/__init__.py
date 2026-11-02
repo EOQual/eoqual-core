@@ -24,7 +24,7 @@ Les sous-modules s'importent directement :
 >>> from eoqual.core.edge import frequency_at
 """
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __title__ = "eoqual.core"
 __description__ = "Shared numerical building blocks for EOQual modules"
 __url__ = "https://github.com/EOQual/eoqual-core"

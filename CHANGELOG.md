@@ -2,7 +2,14 @@
 
 ## Version History
 
-Non publié (0.2.0)
+0.3.0 (2026-11-02)
+
+:   -   `psf.airy_radius_px` : rayon du premier anneau noir en pixels
+        (`1.22 λ f / (D p)`), repris d'eoqual-phaseretrieval
+        (`simulation.star_profiles.airy_radius_from_wavelength`) ; utilisé
+        par eoqual-deconvolution (`psf.system_psf`).
+
+0.2.0 (2026-10-29)
 
 :   -   `license.txt` : titulaire des droits (Olivier Amram) au lieu du
         nom du module.
