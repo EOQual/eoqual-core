@@ -2,6 +2,22 @@
 
 ## Version History
 
+0.4.0 (2026-11-02)
+
+:   -   `psf.supersampled_coverage` : fraction de couverture sous-pixel
+        d'une forme géométrique (grille `supersample` fois plus fine,
+        moyenne par bloc), généralisée depuis `_supersampled`
+        d'eoqual-deconvolution (`psf.disk_psf`, `psf.motion_psf`) ;
+        utilisée aussi par eoqual-phaseretrieval
+        (`pupil.PupilGenerator.with_spiders`) pour adoucir les bras
+        d'araignée d'une pupille générée analytiquement — mesuré jusqu'à
+        2 % d'écart de PSF / 1,5 % de Strehl purement dus à l'alignement
+        sous-pixel de la grille sans ce traitement, réduit à 0,2 % avec
+        (voir REFERENCE_TECHNIQUE.md §5.1 et celle d'eoqual-phaseretrieval
+        §10.4). Le contour principal d'une pupille (disque, anneau) n'en
+        bénéficie pas mesurablement (< 0,3 % dès 64 px d'ouverture) et
+        n'est volontairement pas concerné.
+
 0.3.0 (2026-11-02)
 
 :   -   `psf.airy_radius_px` : rayon du premier anneau noir en pixels

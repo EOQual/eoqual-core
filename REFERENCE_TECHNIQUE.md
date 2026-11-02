@@ -104,6 +104,13 @@ approximation à une fraction de pixel près.
 
 - `airy_psf` : PSF de diffraction d'une pupille circulaire non obturée,
   somme 1, échelle donnée en rad/pixel.
+- `airy_radius_px` : rayon du premier anneau noir en pixels (`1.22 λ f /
+  (D p)`).
+- `integrated_profile` : profil (gaussien, Moffat, Airy) intégré sur la
+  surface de chaque pixel plutôt qu'échantillonné à son centre —
+  gaussien par la fonction d'erreur (exact), Moffat/Airy par
+  sur-échantillonnage. Même convention de centre pour les trois profils
+  (centre du pixel `i` en `i`).
 - `strehl_ratio` : rapport des pics. N'a de sens que si les deux PSF ont
   même normalisation, même échantillonnage et même bande spectrale ; un
   rapport > 1.02 émet un avertissement (incohérence, pas optique
@@ -113,6 +120,40 @@ approximation à une fraction de pixel près.
   (somme des pixels dont le centre est dans le disque). Vérifié sur Airy :
   0.838 au premier anneau noir (1.22 λ/D). Le fond doit être retiré
   avant : un fond résiduel fausse la normalisation.
+
+### 5.1 `supersampled_coverage` — couverture sous-pixel d'une forme géométrique
+
+Évalue une fonction de forme `shape_func(y, x)` (vrai/faux ou une valeur)
+sur une grille `supersample` fois plus fine par pixel de sortie, puis
+moyenne chaque bloc `supersample x supersample` — un filtre boîte, donc
+la fraction de surface réellement couverte par la forme dans chaque
+pixel, plutôt que la valeur prise en son seul centre.
+
+Généralisation de deux implémentations privées, quasi identiques,
+trouvées chacune dans un module consommateur (règle des « deux modules
+au moins » du README) :
+
+- `eoqual.deconvolution.psf._supersampled` (disque de défocalisation,
+  filé linéaire — formes géométriques simples en espace image) ;
+- le besoin équivalent dans `eoqual.phaseretrieval.pupil.PupilGenerator`
+  pour adoucir le bord des bras d'araignée d'une pupille générée
+  analytiquement (contour principal et obstruction centrale non
+  concernés — voir ci-dessous).
+
+**Pourquoi le contour principal d'une pupille n'a pas besoin de ça, mais
+ses bras d'araignée si** (étude menée côté eoqual-phaseretrieval,
+§10.4 de sa documentation technique) :
+
+- un bord binaire (disque, anneau) converge vers la forme continue en
+  ~1/aperture_px : déjà < 0,3 % d'erreur de PSF dès 64 px d'ouverture, le
+  régime normal de ce code — pas de gain mesurable à en tirer ici ;
+- un bras d'araignée fin (largeur de l'ordre du pixel) n'a pas cette
+  marge : un seuillage binaire donne une largeur/transmission qui dépend
+  de façon quasi aléatoire de l'alignement sous-pixel de la grille — un
+  artefact purement numérique (la pupille physique ne « sait » pas où
+  elle tombe sur la grille), mesuré jusqu'à 2 % d'écart de PSF et 1,5 %
+  de Strehl rien qu'en déplaçant le masque d'une fraction de pixel, réduit
+  à 0,2 %/0,2 % avec `supersampled_coverage` (facteur ~10).
 
 ## 6. `detrend` et `tiling`
 

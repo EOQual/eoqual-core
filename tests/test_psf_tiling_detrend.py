@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 
 from eoqual.core.detrend import fit_plane_residual
-from eoqual.core.psf import airy_psf, encircled_energy, radial_profile, strehl_ratio
+from eoqual.core.psf import airy_psf, encircled_energy, radial_profile, strehl_ratio, supersampled_coverage
 from eoqual.core.tiling import grid_slices, tile_bounds, tile_slices
 
 WAVELENGTH, DIAMETER = 0.5e-6, 0.1
@@ -50,3 +50,39 @@ def test_detrend_removes_plane():
     values = (3 * xx - 2 * yy + 5).ravel().astype(float)
     coords = np.column_stack([xx.ravel(), yy.ravel()]).astype(float)
     assert np.allclose(fit_plane_residual(values, coords), 0)
+
+
+def _disk(radius):
+    return lambda y, x: (x**2 + y**2 <= radius**2).astype(float)
+
+
+def test_supersampled_coverage_disk_area_converges_to_analytic_value():
+    # Aire d'un disque : pi*r^2 (Monte-Carlo géométrique exact, pas une
+    # valeur de référence figée) ; l'erreur doit décroître avec supersample.
+    n, radius = 65, 20.0
+    center = ((n - 1) / 2.0, (n - 1) / 2.0)
+    expected = np.pi * radius**2
+    err_coarse = abs(supersampled_coverage(_disk(radius), (n, n), center, supersample=1).sum() - expected)
+    err_fine = abs(supersampled_coverage(_disk(radius), (n, n), center, supersample=16).sum() - expected)
+    assert err_fine < err_coarse
+    assert err_fine / expected < 0.001
+
+
+def test_supersampled_coverage_produces_graded_edge_pixels():
+    # Au bord du disque, un pixel traversé doit recevoir une valeur
+    # intermédiaire (pas seulement 0 ou 1) dès supersample > 1 — c'est
+    # tout l'intérêt par rapport à un seuillage binaire (cf. §10 de
+    # REFERENCE_TECHNIQUE.md d'eoqual-phaseretrieval).
+    n, radius = 41, 12.0
+    center = ((n - 1) / 2.0, (n - 1) / 2.0)
+    coarse = supersampled_coverage(_disk(radius), (n, n), center, supersample=1)
+    fine = supersampled_coverage(_disk(radius), (n, n), center, supersample=16)
+    assert set(np.unique(coarse)) <= {0.0, 1.0}
+    assert np.any((fine > 0.0) & (fine < 1.0))
+
+
+def test_supersampled_coverage_supersample_one_matches_direct_evaluation():
+    n, radius = 17, 5.0
+    center = (n // 2, n // 2)
+    direct = _disk(radius)(*(np.indices((n, n)) - n // 2))
+    assert np.array_equal(supersampled_coverage(_disk(radius), (n, n), center, supersample=1), direct)

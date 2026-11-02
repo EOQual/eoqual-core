@@ -16,7 +16,10 @@ import warnings
 import numpy as np
 from numpy.typing import NDArray
 
-__all__ = ["airy_psf", "airy_radius_px", "integrated_profile", "strehl_ratio", "radial_profile", "encircled_energy"]
+__all__ = [
+    "airy_psf", "airy_radius_px", "integrated_profile", "supersampled_coverage",
+    "strehl_ratio", "radial_profile", "encircled_energy",
+]
 
 
 def _radii(shape: tuple[int, ...]) -> NDArray[np.float64]:
@@ -170,6 +173,66 @@ def integrated_profile(
         raise ValueError(f"profile inconnu : {profile!r} (attendu gaussian/moffat/airy)")
 
     return amp * high_res.reshape(h, oversample, w, oversample).mean(axis=(1, 3))
+
+
+def supersampled_coverage(
+    shape_func,
+    shape: tuple[int, int],
+    center: tuple[float, float],
+    supersample: int = 8,
+) -> NDArray[np.float64]:
+    """
+    Fraction de couverture sous-pixel d'une forme géométrique quelconque.
+
+    Évalue ``shape_func(y, x) -> bool | float`` sur une grille
+    ``supersample`` fois plus fine par pixel de sortie (coordonnées pixel
+    relatives à ``center``), puis moyenne chaque bloc ``supersample x
+    supersample`` — un filtre boîte, équivalent à un redimensionnement
+    anti-crénelé pour un facteur de décimation entier, mais en pur numpy
+    (reshape + moyenne), sans dépendance supplémentaire.
+
+    Généralise la fonction privée ``_supersampled`` d'
+    ``eoqual.deconvolution.psf`` (disque de défocalisation, filé
+    linéaire) ; utilisée aussi par ``eoqual.phaseretrieval.pupil`` pour
+    adoucir les bras d'araignée d'une pupille générée analytiquement (un
+    seuillage binaire produit, pour un bras fin, une largeur/transmission
+    qui dépend de façon arbitraire de l'alignement sous-pixel de la grille
+    — un artefact numérique, pas un effet physique).
+
+    Parameters
+    ----------
+    shape_func : callable
+        ``shape_func(y, x) -> ndarray`` — vrai/valeur à l'intérieur de la
+        forme, évalué en coordonnées pixel ``(y, x)`` relatives à
+        ``center`` (mêmes tableaux larges ``(h, supersample, w,
+        supersample)`` en entrée que renvoyés en sortie par
+        ``np.broadcast``).
+    shape : tuple[int, int]
+        Taille de sortie ``(H, W)``.
+    center : tuple[float, float]
+        Centre ``(y0, x0)`` en coordonnées pixel (pixel ``(0, 0)`` en haut
+        à gauche) — à la charge de l'appelant pour rester cohérent avec sa
+        propre convention de centrage (p. ex. ``(n - 1) / 2`` ou ``n //
+        2``, voir ``eoqual.core.kernel`` sur ce point).
+    supersample : int, default 8
+        Facteur de sous-échantillonnage par dimension (``supersample**2``
+        sous-pixels moyennés par pixel de sortie).
+
+    Returns
+    -------
+    NDArray
+        ``(H, W)``, valeurs dans ``[0, 1]`` pour un ``shape_func``
+        booléen (fraction de couverture) — **non normalisé** (pas de
+        somme 1) : à la charge de l'appelant pour un noyau de PSF.
+    """
+    h, w = shape
+    y0, x0 = center
+    s = np.arange(supersample) / supersample + 0.5 / supersample - 0.5
+    y = np.arange(h) - y0
+    x = np.arange(w) - x0
+    yy = y[:, None, None, None] + s[None, None, :, None]
+    xx = x[None, :, None, None] + s[None, None, None, :]
+    return np.asarray(shape_func(yy, xx), dtype=np.float64).mean(axis=(2, 3))
 
 
 def strehl_ratio(psf_measured: NDArray[np.floating], psf_reference: NDArray[np.floating]) -> float:
